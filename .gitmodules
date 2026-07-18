@@ -1,3 +1,3 @@
 [submodule "local_decoder"]
-	path = local_decoder
+	path = png_decoder
 	url = https://github.com/KyodaiKen/png_stream_dec
