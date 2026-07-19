@@ -1,5 +1,6 @@
 [workspace]
-members = ["ppmpam", "png_decoder", "tng", "cli"]
+members = ["ppmpam", "png_decoder/decoder", "tng", "cli"]
+exclude = ["png_decoder"]
 resolver = "3"
 
 [profile.release]

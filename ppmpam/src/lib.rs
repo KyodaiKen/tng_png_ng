@@ -4,9 +4,7 @@ use std::io::{self, Read};
 use std::os::raw::{c_char, c_void};
 use std::ptr;
 
----
-
-### FFI Compatibility Types & Metadata
+// FFI Compatibility Types & Metadata
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,6 +16,7 @@ pub enum Format {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub struct PpmPamMetadata {
     pub format: Format,
     pub width: u32,
@@ -55,9 +54,7 @@ impl Read for StreamContext {
     }
 }
 
----
-
-### Internal Header Parsing Implementation
+// Internal Header Parsing Implementation
 
 /// Internal helper to pull next space-separated alphanumeric token from text-based headers
 fn next_ppm_token(r: &mut dyn Read) -> Result<String, String> {
@@ -192,9 +189,7 @@ fn parse_headers(mut reader: Box<dyn Read>) -> Result<PpmPamDecoder, String> {
     })
 }
 
----
-
-### Rust Implementation API
+// Rust Implementation API
 
 impl PpmPamDecoder {
     pub fn read_scanlines(&mut self, num_scanlines: u32, out_buf: &mut [u8]) -> Result<u32, String> {
@@ -240,9 +235,7 @@ impl PpmPamDecoder {
     }
 }
 
----
-
-### Public C-FFI Interface Boundary
+// Public C-FFI Interface Boundary
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ppmpam_open_file(
@@ -326,4 +319,73 @@ pub unsafe extern "C" fn ppmpam_close(decoder: *mut PpmPamDecoder) -> i32 {
     // Drop execution ownership to reclaim the context safely
     let _ = unsafe { Box::from_raw(decoder) };
     0
+}
+
+pub struct ImageInfo {
+    pub width: u32,
+    pub height: u32,
+    pub color_type: u8,
+    pub bit_depth: u8,
+}
+
+pub struct Decoder {
+    inner: PpmPamDecoder,
+    buf: Vec<u8>,
+    buf_cursor: usize,
+}
+
+impl Decoder {
+    pub fn new<R: Read + 'static>(reader: R) -> Result<Self, String> {
+        let inner = parse_headers(Box::new(reader))?;
+        Ok(Self {
+            inner,
+            buf: Vec::new(),
+           buf_cursor: 0,
+        })
+    }
+
+    pub fn info(&self) -> ImageInfo {
+        let meta = self.inner.metadata;
+        // Map depth to TNG color types (0 = Grayscale, 2 = RGB, 6 = RGBA)
+        let color_type = match meta.depth {
+            1 => 0,
+            2 => 4, // Grayscale + Alpha
+            3 => 2,
+            4 => 6,
+            _ => 2,
+        };
+        let bit_depth = if meta.maxval > 255 { 16 } else { 8 };
+        ImageInfo {
+            width: meta.width,
+            height: meta.height,
+            color_type,
+            bit_depth,
+        }
+    }
+}
+
+impl Read for Decoder {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        // Fetch a new scanline if buffer is exhausted
+        if self.buf_cursor >= self.buf.len() {
+            self.buf.resize(self.inner.bytes_per_row, 0);
+            match self.inner.read_scanlines(1, &mut self.buf) {
+                Ok(0) => return Ok(0), // End of File
+                Ok(_) => {
+                    self.buf_cursor = 0;
+                }
+                Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e)),
+            }
+        }
+
+        let available = self.buf.len() - self.buf_cursor;
+        let to_copy = available.min(buf.len());
+        buf[..to_copy].copy_from_slice(&self.buf[self.buf_cursor..self.buf_cursor + to_copy]);
+        self.buf_cursor += to_copy;
+        Ok(to_copy)
+    }
 }

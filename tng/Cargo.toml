@@ -6,3 +6,12 @@ edition = "2024"
 [lib]
 name = "tng"
 crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+zstd = "0.13"
+xz2 = "0.1"
+brotli = "6.0"
+flate2 = "1.0"
+
+rayon = "1.10"
+libc = "0.2"

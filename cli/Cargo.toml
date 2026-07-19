@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 ppmpam = { path = "../ppmpam" }
-png_decoder = { path = "../png_decoder" }
+decoder = { path = "../png_decoder/decoder" }
 tng = { path = "../tng" }
 anstream = "1.0"
 owo-colors = "4.0"
