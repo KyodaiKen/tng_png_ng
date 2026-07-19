@@ -1,6 +1,9 @@
-[dependencies]
-# Switch from 'git' to 'path' so it uses your local submodule
-pngstreamdec = { path = "png_decoder" }
+[workspace]
+members = ["ppmpam", "png_decoder", "tng", "cli"]
+resolver = "3"
 
-anstream = "1.0"
-owo-colors = "4.0"
+[profile.release]
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = 'symbols'

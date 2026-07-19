@@ -1,0 +1,8 @@
+[package]
+name = "ppmpam"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "ppmpam"
+crate-type = ["cdylib", "rlib"]
